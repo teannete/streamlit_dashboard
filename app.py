@@ -85,7 +85,7 @@ def import_geojson():
 # --- STREAMLIT TÖÖLAUD ---
 st.title("Loomulik iive maakonniti")
 
-valitud_aasta = st.sidebar.selectbox("Vali aasta", [str(aasta) for aasta in range(2014, 2024)])
+valitud_aasta = st.sidebar.selectbox("Vali aasta", list(range(2014, 2024)))
 
 # Lae andmed
 df = import_data()
