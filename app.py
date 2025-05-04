@@ -62,15 +62,25 @@ st.title("Loomulik iive maakonniti")
 # Külgriba – aasta valik
 valitud_aasta = st.sidebar.selectbox("Vali aasta", [str(aasta) for aasta in range(2014, 2024)])
 
-# Andmed
+# Andmete laadimine
 df = import_data()
 gdf = import_geojson()
 
-# Andmete filtreerimine ja eeltöötlus
+# Kuvame veerunimed (vajadusel silumiseks)
+# st.write(df.columns.tolist())
+
+# Lisa arvutatud veerg
+try:
+    df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
+except KeyError:
+    st.error("Kontrolli, et andmestikus oleks veerud 'Mehed Loomulik iive' ja 'Naised Loomulik iive'")
+    st.stop()
+
+# Filtreeri valitud aasta
 df_aasta = df[df["Aasta"] == valitud_aasta]
 df_aasta = df_aasta.groupby("Maakond").agg({"Loomulik iive": "sum"}).reset_index()
 
-# Liida maakonna andmed geoandmetega
+# Ühenda geoandmetega
 gdf_merged = gdf.merge(df_aasta, left_on="MNIMI", right_on="Maakond")
 
 # Kaardi joonistamine
