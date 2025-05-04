@@ -102,6 +102,12 @@ df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
 # Jäta alles ainult maakonnad, mis eksisteerivad ka GeoJSONis
 df = df[df["Maakond"].isin(gdf["MNIMI"])]
 
+if st.checkbox("Näita maakondade nimekirju sobitamiseks"):
+    st.subheader("Andmestiku maakonnad:")
+    st.write(sorted(df["Maakond"].unique().tolist()))
+    st.subheader("GeoJSONi maakonnad:")
+    st.write(sorted(gdf["MNIMI"].unique().tolist()))
+
 # Ühenda andmestikud
 gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
 
