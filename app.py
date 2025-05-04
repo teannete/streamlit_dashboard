@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import requests
 import json
 from io import StringIO
+import tempfile
+import os
 
 # --- STATISTIKAAMETI API ---
 STATISTIKAAMETI_API_URL = "https://andmed.stat.ee/api/v1/et/stat/RV032"
@@ -52,33 +54,16 @@ def import_data():
 
 @st.cache_data
 def import_geojson():
-    import tempfile
-    import os
-
     file_id = "1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-"
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
-
     response = requests.get(url)
     if response.status_code != 200:
         st.error(f"GeoJSON faili allalaadimine ebaõnnestus (status code: {response.status_code})")
         return gpd.GeoDataFrame()
-
-    # Salvesta ajutiselt
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode="wb") as tmp_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmp_file:
         tmp_file.write(response.content)
         tmp_path = tmp_file.name
-
-    # --- Debugi: vaata failis esimesi baite
-    with open(tmp_path, "r", encoding="utf-8") as f:
-        first_lines = f.read(500)
-    st.text("Faili esimesed read:\n" + first_lines)
-
-    try:
-        gdf = gpd.read_file(tmp_path)
-    except Exception as e:
-        st.error(f"GeoJSONi laadimine ebaõnnestus: {e}")
-        return gpd.GeoDataFrame()
-
+    gdf = gpd.read_file(tmp_path)
     os.remove(tmp_path)
     return gdf
 
@@ -87,56 +72,21 @@ st.title("Loomulik iive maakonniti")
 
 valitud_aasta = st.sidebar.selectbox("Vali aasta", list(range(2014, 2024)))
 
-# Lae andmed
 df = import_data()
 gdf = import_geojson()
 
-# Kontrolli veerge
+# Kontroll veergude olemasolu
 if "Mehed Loomulik iive" not in df.columns or "Naised Loomulik iive" not in df.columns:
-    st.error("Andmestikus puuduvad veerud 'Mehed Loomulik iive' ja 'Naised Loomulik iive'.")
+    st.error("Andmestikus puuduvad vajalikud veerud.")
     st.stop()
 
-# Arvuta koguiive
+# Arvuta koguiive ja filtreeri
 df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
-
-# Jäta alles ainult maakonnad, mis eksisteerivad ka GeoJSONis
 df = df[df["Maakond"].isin(gdf["MNIMI"])]
-
-if st.checkbox("Näita maakondade nimekirju sobitamiseks"):
-    st.subheader("Andmestiku maakonnad:")
-    st.write(sorted(df["Maakond"].unique().tolist()))
-    st.subheader("GeoJSONi maakonnad:")
-    st.write(sorted(gdf["MNIMI"].unique().tolist()))
-
-# Ühenda andmestikud
 gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
-
-# Filtreeri aasta
 gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
-# --- DIAGNOSTIKA ---
-st.subheader("Diagnostika")
-
-# Kuvame mitu rida on pärast filtreerimist
-st.write(f"Filtreeritud andmeridu (aasta {valitud_aasta}):", len(gdf_aasta))
-
-# Kontrollime kas 'Loomulik iive' on NaN
-na_count = gdf_aasta["Loomulik iive"].isna().sum()
-st.write(f"'Loomulik iive' veerus NaN väärtusi:", na_count)
-
-# Kuvame mõned read
-st.write("Esimesed read pärast filtreerimist:")
-st.dataframe(gdf_aasta[["MNIMI", "Aasta", "Loomulik iive", "geometry"]].head())
-
-# Kontrollime geomeetria olekut
-if gdf_aasta.geometry.is_empty.all():
-    st.error("Kõik geomeetriad on tühjad.")
-elif gdf_aasta.geometry.isnull().all():
-    st.error("Kõik geomeetriad on null.")
-else:
-    st.success("Geomeetriad on olemas.")
-
-# Kuvamine või hoiatus
+# Kuvamine
 if gdf_aasta.empty or gdf_aasta.geometry.is_empty.all():
     st.warning(f"Aastal {valitud_aasta} ei ole visualiseeritavaid andmeid.")
 else:
