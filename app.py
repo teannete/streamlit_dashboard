@@ -66,25 +66,34 @@ valitud_aasta = st.sidebar.selectbox("Vali aasta", [str(aasta) for aasta in rang
 df = import_data()
 gdf = import_geojson()
 
-# Ühenda geoandmed ja statistikaandmed
+# Kontrolli veergude olemasolu
+required_cols = ["Maakond", "Mehed Loomulik iive", "Naised Loomulik iive"]
+if not all(col in df.columns for col in required_cols):
+    st.error("Andmestikus puuduvad vajalikud veerud. Kontrolli andmevormingut.")
+    st.write("Veerud:", df.columns.tolist())
+    st.stop()
+
+# Arvuta loomulik iive
+df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
+
+# Kontrolli maakondade ühtlust
+st.sidebar.markdown("**Kontrolli maakonnanimede sobivust:**")
+if st.sidebar.checkbox("Näita maakondade nimed"):
+    st.sidebar.write("Andmestikus:", sorted(df["Maakond"].unique()))
+    st.sidebar.write("GeoJSONis:", sorted(gdf["MNIMI"].unique()))
+
+# Ühenda geoandmetega
 gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
 
-# Kontrolli, kas merge õnnestus
+# Kui merge ebaõnnestus
 if gdf_merged.empty:
-    st.error("Andmete ühendamine ebaõnnestus – kontrolli maakondade nimesid.")
+    st.error("Geoandmete ja statistikaandmete ühendamine ebaõnnestus – maakondade nimed ei klapi.")
     st.stop()
 
-# Arvuta "Loomulik iive"
-try:
-    gdf_merged["Loomulik iive"] = gdf_merged["Mehed Loomulik iive"] + gdf_merged["Naised Loomulik iive"]
-except KeyError as e:
-    st.error(f"Puuduv veerg: {e}")
-    st.stop()
-
-# Filtreeri valitud aasta järgi
+# Filtreeri valitud aasta
 gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
-# Kui andmed puuduvad, anna märku
+# Kontroll, kas midagi on joonistada
 if gdf_aasta.empty or gdf_aasta.geometry.is_empty.all():
     st.warning(f"Aastal {valitud_aasta} ei ole visualiseeritavaid andmeid.")
 else:
