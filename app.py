@@ -54,7 +54,8 @@ def import_data():
 
 @st.cache_data
 def import_geojson():
-    return gpd.read_file(GEOJSON_FAIL)
+    url = "https://drive.google.com/uc?export=download&id=1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-"
+    return gpd.read_file(url)
 
 # ---- TÖÖLAUD ----
 st.title("Loomulik iive maakonniti")
