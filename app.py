@@ -114,6 +114,28 @@ gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
 # Filtreeri aasta
 gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
+# --- DIAGNOSTIKA ---
+st.subheader("Diagnostika")
+
+# Kuvame mitu rida on pärast filtreerimist
+st.write(f"Filtreeritud andmeridu (aasta {valitud_aasta}):", len(gdf_aasta))
+
+# Kontrollime kas 'Loomulik iive' on NaN
+na_count = gdf_aasta["Loomulik iive"].isna().sum()
+st.write(f"'Loomulik iive' veerus NaN väärtusi:", na_count)
+
+# Kuvame mõned read
+st.write("Esimesed read pärast filtreerimist:")
+st.dataframe(gdf_aasta[["MNIMI", "Aasta", "Loomulik iive", "geometry"]].head())
+
+# Kontrollime geomeetria olekut
+if gdf_aasta.geometry.is_empty.all():
+    st.error("Kõik geomeetriad on tühjad.")
+elif gdf_aasta.geometry.isnull().all():
+    st.error("Kõik geomeetriad on null.")
+else:
+    st.success("Geomeetriad on olemas.")
+
 # Kuvamine või hoiatus
 if gdf_aasta.empty or gdf_aasta.geometry.is_empty.all():
     st.warning(f"Aastal {valitud_aasta} ei ole visualiseeritavaid andmeid.")
