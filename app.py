@@ -85,10 +85,9 @@ except KeyError as e:
 gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
 # Kui andmed puuduvad, anna märku
-if gdf_aasta.empty:
-    st.warning(f"Aastal {valitud_aasta} andmed puuduvad.")
+if gdf_aasta.empty or gdf_aasta.geometry.is_empty.all():
+    st.warning(f"Aastal {valitud_aasta} ei ole visualiseeritavaid andmeid.")
 else:
-    # Joonista kaart
     fig, ax = plt.subplots(figsize=(10, 7))
     gdf_aasta.plot(
         column="Loomulik iive",
