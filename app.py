@@ -54,25 +54,32 @@ def import_data():
 def import_geojson():
     import tempfile
     import os
+
     file_id = "1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-"
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
-   # Lae fail alla
+
     response = requests.get(url)
     if response.status_code != 200:
         st.error(f"GeoJSON faili allalaadimine ebaõnnestus (status code: {response.status_code})")
         return gpd.GeoDataFrame()
 
     # Salvesta ajutiselt
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmp_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode="wb") as tmp_file:
         tmp_file.write(response.content)
         tmp_path = tmp_file.name
 
-    # Lae GeoJSON geopandas abil
-    gdf = gpd.read_file(tmp_path)
+    # --- Debugi: vaata failis esimesi baite
+    with open(tmp_path, "r", encoding="utf-8") as f:
+        first_lines = f.read(500)
+    st.text("Faili esimesed read:\n" + first_lines)
 
-    # Eemalda ajutine fail pärast laadimist
+    try:
+        gdf = gpd.read_file(tmp_path)
+    except Exception as e:
+        st.error(f"GeoJSONi laadimine ebaõnnestus: {e}")
+        return gpd.GeoDataFrame()
+
     os.remove(tmp_path)
-
     return gdf
 
 # --- STREAMLIT TÖÖLAUD ---
