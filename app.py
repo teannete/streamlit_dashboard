@@ -52,7 +52,7 @@ def import_data():
 
 @st.cache_data
 def import_geojson():
-    url = "https://drive.google.com/file/d/1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-/view?usp=drive_link"
+    url = "https://drive.google.com/file/d/1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-"
     return gpd.read_file(url)
 
 # --- STREAMLIT TÖÖLAUD ---
