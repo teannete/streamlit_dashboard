@@ -6,10 +6,8 @@ import requests
 import json
 from io import StringIO
 
-# ---- KONFIGURATSIOON ----
+# --- STATISTIKAAMETI API ---
 STATISTIKAAMETI_API_URL = "https://andmed.stat.ee/api/v1/et/stat/RV032"
-GEOJSON_FAIL = "maakonnad_simplified.geojson"
-
 JSON_PAYLOAD_STR = """{
   "query": [
     {
@@ -40,7 +38,7 @@ JSON_PAYLOAD_STR = """{
 }
 """
 
-# ---- ANDMETE LAADIMINE ----
+# --- ANDMETE LAADIMINE ---
 @st.cache_data
 def import_data():
     headers = {'Content-Type': 'application/json'}
@@ -57,44 +55,33 @@ def import_geojson():
     url = "https://drive.google.com/uc?export=download&id=1sY_lSxCXGpXUiPsGt62PfgbNbSIwVIL-"
     return gpd.read_file(url)
 
-# ---- TÖÖLAUD ----
+# --- STREAMLIT TÖÖLAUD ---
 st.title("Loomulik iive maakonniti")
 
-# Külgriba – aasta valik
 valitud_aasta = st.sidebar.selectbox("Vali aasta", [str(aasta) for aasta in range(2014, 2024)])
 
 # Lae andmed
 df = import_data()
 gdf = import_geojson()
 
-# Kontrolli veergude olemasolu
-required_cols = ["Maakond", "Mehed Loomulik iive", "Naised Loomulik iive"]
-if not all(col in df.columns for col in required_cols):
-    st.error("Andmestikus puuduvad vajalikud veerud. Kontrolli andmevormingut.")
-    st.write("Veerud:", df.columns.tolist())
+# Kontrolli veerge
+if "Mehed Loomulik iive" not in df.columns or "Naised Loomulik iive" not in df.columns:
+    st.error("Andmestikus puuduvad veerud 'Mehed Loomulik iive' ja 'Naised Loomulik iive'.")
     st.stop()
 
-# Arvuta loomulik iive
+# Arvuta koguiive
 df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
 
-# Kontrolli maakondade ühtlust
-st.sidebar.markdown("**Kontrolli maakonnanimede sobivust:**")
-if st.sidebar.checkbox("Näita maakondade nimed"):
-    st.sidebar.write("Andmestikus:", sorted(df["Maakond"].unique()))
-    st.sidebar.write("GeoJSONis:", sorted(gdf["MNIMI"].unique()))
+# Jäta alles ainult maakonnad, mis eksisteerivad ka GeoJSONis
+df = df[df["Maakond"].isin(gdf["MNIMI"])]
 
-# Ühenda geoandmetega
+# Ühenda andmestikud
 gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
 
-# Kui merge ebaõnnestus
-if gdf_merged.empty:
-    st.error("Geoandmete ja statistikaandmete ühendamine ebaõnnestus – maakondade nimed ei klapi.")
-    st.stop()
-
-# Filtreeri valitud aasta
+# Filtreeri aasta
 gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
-# Kontroll, kas midagi on joonistada
+# Kuvamine või hoiatus
 if gdf_aasta.empty or gdf_aasta.geometry.is_empty.all():
     st.warning(f"Aastal {valitud_aasta} ei ole visualiseeritavaid andmeid.")
 else:
