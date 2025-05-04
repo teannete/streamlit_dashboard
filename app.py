@@ -62,38 +62,43 @@ st.title("Loomulik iive maakonniti")
 # Külgriba – aasta valik
 valitud_aasta = st.sidebar.selectbox("Vali aasta", [str(aasta) for aasta in range(2014, 2024)])
 
-# Andmete laadimine
+# Lae andmed
 df = import_data()
 gdf = import_geojson()
 
-# Kuvame veerunimed (vajadusel silumiseks)
-# st.write(df.columns.tolist())
+# Ühenda geoandmed ja statistikaandmed
+gdf_merged = gdf.merge(df, left_on="MNIMI", right_on="Maakond")
 
-# Lisa arvutatud veerg
-try:
-    df["Loomulik iive"] = df["Mehed Loomulik iive"] + df["Naised Loomulik iive"]
-except KeyError:
-    st.error("Kontrolli, et andmestikus oleks veerud 'Mehed Loomulik iive' ja 'Naised Loomulik iive'")
+# Kontrolli, kas merge õnnestus
+if gdf_merged.empty:
+    st.error("Andmete ühendamine ebaõnnestus – kontrolli maakondade nimesid.")
     st.stop()
 
-# Filtreeri valitud aasta
-df_aasta = df[df["Aasta"] == valitud_aasta]
-df_aasta = df_aasta.groupby("Maakond").agg({"Loomulik iive": "sum"}).reset_index()
+# Arvuta "Loomulik iive"
+try:
+    gdf_merged["Loomulik iive"] = gdf_merged["Mehed Loomulik iive"] + gdf_merged["Naised Loomulik iive"]
+except KeyError as e:
+    st.error(f"Puuduv veerg: {e}")
+    st.stop()
 
-# Ühenda geoandmetega
-gdf_merged = gdf.merge(df_aasta, left_on="MNIMI", right_on="Maakond")
+# Filtreeri valitud aasta järgi
+gdf_aasta = gdf_merged[gdf_merged["Aasta"] == valitud_aasta]
 
-# Kaardi joonistamine
-fig, ax = plt.subplots(figsize=(10, 7))
-gdf_merged.plot(
-    column="Loomulik iive",
-    cmap="viridis",
-    linewidth=0.8,
-    ax=ax,
-    edgecolor='0.8',
-    legend=True,
-    legend_kwds={'label': "Loomulik iive", 'shrink': 0.6}
-)
-ax.set_title(f"Loomulik iive maakondade kaupa, {valitud_aasta}")
-ax.axis("off")
-st.pyplot(fig)
+# Kui andmed puuduvad, anna märku
+if gdf_aasta.empty:
+    st.warning(f"Aastal {valitud_aasta} andmed puuduvad.")
+else:
+    # Joonista kaart
+    fig, ax = plt.subplots(figsize=(10, 7))
+    gdf_aasta.plot(
+        column="Loomulik iive",
+        cmap="viridis",
+        linewidth=0.8,
+        ax=ax,
+        edgecolor='0.8',
+        legend=True,
+        legend_kwds={'label': "Loomulik iive", 'shrink': 0.6}
+    )
+    ax.set_title(f"Loomulik iive maakondade kaupa, {valitud_aasta}")
+    ax.axis("off")
+    st.pyplot(fig)
